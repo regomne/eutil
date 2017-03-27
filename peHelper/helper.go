@@ -2,6 +2,7 @@ package peHelper
 
 import (
 	"debug/pe"
+	"os"
 )
 
 // RvaToOffset convert pe rva to file offset
@@ -42,4 +43,43 @@ func OffsetToRva(peFile *pe.File, off uint32) (rva uint32, secIdx int) {
 		}
 	}
 	return 0xffffffff, -1
+}
+
+func ceilAlign(val uint32, align uint32) uint32 {
+	l := val % align
+	if l == 0 {
+		return val
+	}
+	return (val/align + 1) * align
+}
+
+// LoadPEImage load a PE file to memory
+func LoadPEImage(fname string) (image []byte, err error) {
+	var peFile *pe.File
+	peFile, err = pe.Open(fname)
+	if err != nil {
+		return
+	}
+	defer peFile.Close()
+	var fs *os.File
+	fs, err = os.Open(fname)
+	if err != nil {
+		return
+	}
+	defer fs.Close()
+	lastSec := peFile.Sections[peFile.NumberOfSections-1]
+	imageSize := lastSec.VirtualAddress + ceilAlign(lastSec.VirtualSize, 0x1000)
+	image = make([]byte, imageSize)
+	_, err = fs.Read(image[0:peFile.Sections[0].Offset])
+	if err != nil {
+		return
+	}
+	for _, sec := range peFile.Sections {
+		fs.Seek(int64(sec.Offset), 0)
+		_, err = fs.Read(image[sec.VirtualAddress : sec.VirtualAddress+sec.Size])
+		if err != nil {
+			return
+		}
+	}
+	return
 }
