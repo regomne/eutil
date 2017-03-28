@@ -2,6 +2,7 @@ package peHelper
 
 import (
 	"debug/pe"
+	"fmt"
 	"os"
 )
 
@@ -54,7 +55,7 @@ func ceilAlign(val uint32, align uint32) uint32 {
 }
 
 // LoadPEImage load a PE file to memory
-func LoadPEImage(fname string) (image []byte, err error) {
+func LoadPEImage(fname string) (image []byte, baseAddr uint32, err error) {
 	var peFile *pe.File
 	peFile, err = pe.Open(fname)
 	if err != nil {
@@ -67,6 +68,12 @@ func LoadPEImage(fname string) (image []byte, err error) {
 		return
 	}
 	defer fs.Close()
+	opHeader, ok := peFile.OptionalHeader.(*pe.OptionalHeader32)
+	if !ok {
+		err = fmt.Errorf("only support 32bit pe")
+		return
+	}
+	baseAddr = opHeader.ImageBase
 	lastSec := peFile.Sections[peFile.NumberOfSections-1]
 	imageSize := lastSec.VirtualAddress + ceilAlign(lastSec.VirtualSize, 0x1000)
 	image = make([]byte, imageSize)
