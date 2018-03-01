@@ -30,6 +30,7 @@ var codecTable = [...]*codecSupport{
 
 //Codecs
 const (
+	Unknown  = -1
 	GBK      = 0
 	C936     = 0
 	ShiftJIS = 1
